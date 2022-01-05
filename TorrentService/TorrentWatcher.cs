@@ -135,7 +135,8 @@ namespace Dontnod.TorrentService
 
             List<string> allTorrentPaths = new List<string>();
             foreach (string path in localPathCollection)
-                allTorrentPaths.AddRange(Directory.EnumerateFiles(path, "*.torrent"));
+                if (Directory.Exists(path))
+                    allTorrentPaths.AddRange(Directory.EnumerateFiles(path, "*.torrent", SearchOption.AllDirectories));
             return allTorrentPaths;
         }
 
