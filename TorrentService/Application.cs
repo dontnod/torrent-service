@@ -113,7 +113,8 @@ namespace Dontnod.TorrentService
             {
                 if (Environment.OSVersion.Platform == PlatformID.Unix)
                 {
-                    if (UnixSignal.WaitAny(terminationSignals.ToArray(), TimeSpan.FromSeconds(1)) != 1000)
+                    var timeout = TimeSpan.FromSeconds(1);
+                    if (UnixSignal.WaitAny(terminationSignals.ToArray(), timeout) != timeout.TotalMilliseconds)
                         shouldExit = true;
                 }
                 else
