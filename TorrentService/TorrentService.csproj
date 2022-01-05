@@ -13,15 +13,15 @@
     <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="GitVersion.MsBuild" Version="5.6.9" PrivateAssets="all">
+    <PackageReference Include="GitVersion.MsBuild" Version="5.8.1" PrivateAssets="all">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="MonoTorrent" Version="1.0.26" />
-    <!--<PackageReference Include="Mono.Nat" Version="2.0.2" />-->
-    <PackageReference Include="Mono.Options" Version="6.6.0.161" />
-    <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
-    <PackageReference Include="NLog" Version="4.7.9" />
-    <PackageReference Include="ReusableTasks" Version="2.0.0" />
+    <!-- Do not update this before https://github.com/alanmcgovern/monotorrent/issues/496 is fixed -->
+    <PackageReference Include="MonoTorrent" Version="1.0.27" />
+    <PackageReference Include="Mono.Options" Version="6.12.0.148" />
+    <PackageReference Include="Mono.Posix.NETStandard" Version="5.20.1-preview" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="NLog" Version="5.0.0-rc1" />
+    <PackageReference Include="ReusableTasks" Version="2.0.1" />
   </ItemGroup>
 </Project>
