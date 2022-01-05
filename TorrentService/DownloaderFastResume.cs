@@ -28,7 +28,7 @@ namespace Dontnod.TorrentService
 
                     BEncodedDictionary fastResume = fastResumeCollection[fastResumePath];
                     fastResume[ConvertToHash(torrentManager)] = torrentManager.SaveFastResume().Encode();
-                    File.WriteAllBytes(fastResumePath, fastResume.Encode());
+                    WriteToFile(fastResumePath, fastResume);
                     return true;
                 }
             }
@@ -82,7 +82,7 @@ namespace Dontnod.TorrentService
                     {
                         BEncodedDictionary fastResume = fastResumeCollection[fastResumePath];
                         fastResume.Remove(ConvertToHash(torrentManager));
-                        File.WriteAllBytes(fastResumePath, fastResume.Encode());
+                        WriteToFile(fastResumePath, fastResume);
                     }
                 }
             }
@@ -105,7 +105,7 @@ namespace Dontnod.TorrentService
                         IEnumerable<BEncodedString> hashesToKeep = torrentsToKeep.Select(ConvertToHash);
                         foreach (BEncodedString hash in fastResume.Keys.Except(hashesToKeep).ToList())
                             fastResume.Remove(hash);
-                        File.WriteAllBytes(fastResumePath, fastResume.Encode());
+                        WriteToFile(fastResumePath, fastResume);
                     }
                 }
             }
@@ -113,6 +113,13 @@ namespace Dontnod.TorrentService
             {
                 logger.Warn(exception, "Failed to clean fast resume");
             }
+        }
+
+        private void WriteToFile(string fastResumePath, BEncodedDictionary fastResume)
+        {
+            var tempPath = $"{fastResumePath}.{Guid.NewGuid()}.tmp";
+            File.WriteAllBytes(tempPath, fastResume.Encode());
+            File.Move(tempPath, fastResumePath, overwrite: true);
         }
 
         private BEncodedString ConvertToHash(TorrentManager torrentManager)
