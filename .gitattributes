@@ -1,0 +1,15 @@
+# Everything is text unless it isn’t
+* text=auto
+
+# This is really text
+*.cs text
+*.xaml text
+
+# This is Windows-specific and should always have CRLF
+*.sln text eol=crlf
+*.csproj text eol=crlf
+*.resx text eol=crlf
+
+*.exe filter=lfs diff=lfs merge=lfs -text
+*.pdb filter=lfs diff=lfs merge=lfs -text
+*.dll filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,15 @@
+# Build
+.build/
+.deploy/
+
+# Visual Studio
+.vs/
+*.csproj.user
+*.props.user
+*.sdf
+*.suo
+bin
+obj
+
+# Visual Studio Code
+.vscode/
