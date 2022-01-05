@@ -72,15 +72,6 @@ namespace Dontnod.TorrentService
                 {
                     torrentEngine.StopAll();
                 }
-
-                if (String.IsNullOrEmpty(fastResumePath) == false)
-                {
-                    foreach (TorrentManager torrentManager in ListTorrentManagers())
-                    {
-                        if (torrentManager.HashChecked)
-                            fastResume.TrySave(fastResumePath, torrentManager);
-                    }
-                }
             }
         }
 
@@ -205,7 +196,7 @@ namespace Dontnod.TorrentService
                 }
 
                 TorrentManager torrentManager = new TorrentManager(torrent, Path.GetDirectoryName(path), new TorrentSettings());
-                torrentManager.TorrentStateChanged += LogTorrentState;
+                torrentManager.TorrentStateChanged += OnTorrentStateChanged;
 
                 if (String.IsNullOrEmpty(fastResumePath) == false)
                     fastResume.TryLoad(fastResumePath, torrentManager);
@@ -237,10 +228,7 @@ namespace Dontnod.TorrentService
                         torrentEngine.Unregister(torrentManager);
                     }
 
-                    torrentManager.TorrentStateChanged -= LogTorrentState;
-
-                    if (String.IsNullOrEmpty(fastResumePath) == false)
-                        fastResume.TrySave(fastResumePath, torrentManager);
+                    torrentManager.TorrentStateChanged -= OnTorrentStateChanged;
 
                     logger.Info("Removed torrent {0}", torrentManager.Torrent.TorrentPath);
 
@@ -259,16 +247,30 @@ namespace Dontnod.TorrentService
             }
         }
 
-        private void LogTorrentState(object sender, TorrentStateChangedEventArgs eventArgs)
+        private void OnTorrentStateChanged(object sender, TorrentStateChangedEventArgs eventArgs)
         {
             TorrentManager torrentManager = (TorrentManager)sender;
             string torrentPath = torrentManager.Torrent.TorrentPath;
 
             logger.Trace("{0} changed (State: {1} => {2}, Progress: {3:0.0}%)", torrentPath, eventArgs.OldState, eventArgs.NewState, torrentManager.Progress);
 
+            // Save fast resume state
             switch (eventArgs.NewState)
             {
-                case TorrentState.Downloading: logger.Info("Downloading {0} (Progress: {1:0.0}%)", torrentPath, torrentManager.Progress); break;
+                case TorrentState.Seeding:
+                case TorrentState.Stopped:
+                    if (string.IsNullOrEmpty(fastResumePath) == false)
+                        fastResume.TrySave(fastResumePath, torrentManager);
+                    break;
+                default: break;
+            }
+
+            // Log torrent state change
+            switch (eventArgs.NewState)
+            {
+                case TorrentState.Starting: logger.Info("Starting {0}", torrentPath); break;
+                //case TorrentState.Downloading: logger.Info("Downloading {0} (Progress: {1:0.0}%)", torrentPath, torrentManager.Progress); break;
+                case TorrentState.Hashing: logger.Info("Hashing {0}", torrentPath); break;
                 case TorrentState.Seeding: logger.Info("Seeding {0}", torrentPath); break;
                 case TorrentState.Error: logger.Warn(torrentManager.Error.Exception, "{0} error for torrent {1}", torrentManager.Error.Reason, torrentPath); break;
                 default: break;
