@@ -20,7 +20,7 @@ namespace Dontnod.TorrentService
 
         private const int loadingLimit = 10; // Limit loading per update to accelerate startup
         private const int hashingLimit = 10; // Limit concurrent hashing to reduce IO utilization
-        private static readonly TimeSpan updateTimerPeriod = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan updateTimerPeriod = TimeSpan.FromSeconds(2);
 
         private readonly ClientEngine torrentEngine;
         private readonly DownloaderFastResume fastResume;
@@ -29,6 +29,7 @@ namespace Dontnod.TorrentService
         private readonly object configurationLock = new object();
         private List<string> pathCollectionField;
         private string fastResumePath;
+        private bool skipHashing;
 
         private readonly Timer updateTimer;
         private readonly object updateEntryLock = new object();
@@ -49,6 +50,7 @@ namespace Dontnod.TorrentService
             {
                 pathCollectionField = new List<string>(configuration.DirectoriesToWatch.Select(p => Path.GetFullPath(p)));
                 fastResumePath = configuration.FastResumePath;
+                skipHashing = configuration.SkipHashing;
             }
         }
 
@@ -198,8 +200,25 @@ namespace Dontnod.TorrentService
                 TorrentManager torrentManager = new TorrentManager(torrent, Path.GetDirectoryName(path), new TorrentSettings());
                 torrentManager.TorrentStateChanged += OnTorrentStateChanged;
 
-                if (String.IsNullOrEmpty(fastResumePath) == false)
-                    fastResume.TryLoad(fastResumePath, torrentManager);
+                if (string.IsNullOrEmpty(fastResumePath) || !fastResume.TryLoad(fastResumePath, torrentManager))
+                {
+                    // If no fast resume is available, the skipHashing option may create a fake one for us that
+                    // causes only the first and last chunks to get hashed.
+                    if (skipHashing)
+                    {
+                        var length = torrentManager.Bitfield.Length;
+                        var bitfield = new BitField(length);
+                        var unhashed = new BitField(length);
+                        for (int i = 0; i < length; ++i)
+                        {
+                            bool ok = i != 0 && i != length - 1;
+                            ok = true;
+                            bitfield.Set(i, ok);
+                            unhashed.Set(i, !ok);
+                        }
+                        torrentManager.LoadFastResume(new FastResume(torrentManager.InfoHash, bitfield, unhashed));
+                    }
+                }
 
                 lock (torrentEngineLock)
                 {

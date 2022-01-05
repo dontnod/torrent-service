@@ -26,6 +26,8 @@ namespace Dontnod.TorrentService
         [DataMember]
         public List<string> DirectoriesToWatch { get; set; }
         [DataMember]
+        public bool SkipHashing { get; set; }
+        [DataMember]
         public string FastResumePath { get; set; }
         [DataMember]
         public string StatusFilePath { get; set; }
