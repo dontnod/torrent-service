@@ -17,7 +17,7 @@ namespace Dontnod.TorrentService
         private readonly Dictionary<string, BEncodedDictionary> fastResumeCollection = new Dictionary<string, BEncodedDictionary>();
         private readonly object fastResumeLock = new object();
 
-        public void TrySave(string fastResumePath, TorrentManager torrentManager)
+        public bool TrySave(string fastResumePath, TorrentManager torrentManager)
         {
             try
             {
@@ -29,16 +29,18 @@ namespace Dontnod.TorrentService
                     BEncodedDictionary fastResume = fastResumeCollection[fastResumePath];
                     fastResume[ConvertToHash(torrentManager)] = torrentManager.SaveFastResume().Encode();
                     File.WriteAllBytes(fastResumePath, fastResume.Encode());
+                    return true;
                 }
             }
             catch (Exception exception)
             {
                 string torrentFile = Path.GetFileName(torrentManager.Torrent.TorrentPath);
                 logger.Warn(exception, "Failed to save fast resume for {0}", torrentFile);
+                return false;
             }
         }
 
-        public void TryLoad(string fastResumePath, TorrentManager torrentManager)
+        public bool TryLoad(string fastResumePath, TorrentManager torrentManager)
         {
             try
             {
@@ -54,13 +56,19 @@ namespace Dontnod.TorrentService
                     BEncodedDictionary fastResume = fastResumeCollection[fastResumePath];
                     BEncodedString hash = ConvertToHash(torrentManager);
                     if (fastResume.ContainsKey(hash))
+                    {
                         torrentManager.LoadFastResume(new FastResume((BEncodedDictionary)fastResume[hash]));
+                        return true;
+                    }
+
+                    return false;
                 }
             }
             catch (Exception exception)
             {
                 string torrentFile = Path.GetFileName(torrentManager.Torrent.TorrentPath);
                 logger.Warn(exception, "Failed to load fast resume for {0}", torrentFile);
+                return false;
             }
         }
 
