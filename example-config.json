@@ -1,0 +1,11 @@
+{
+    "Port": 6881,
+
+    "DirectoriesToWatch": [
+        "/var/lib/torrents",
+        "C:\\Torrents"
+    ],
+
+    "FastResumePath": "/var/run/torrent-service/fastresume",
+    "StatusFilePath": "/var/run/torrent-service/status.txt"
+}
