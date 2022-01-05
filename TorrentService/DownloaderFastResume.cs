@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2010-2019 Dontnod Entertainment
+﻿// Copyright © 2010–2022 Dontnod Entertainment
 
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client;

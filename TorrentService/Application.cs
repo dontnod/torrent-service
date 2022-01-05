@@ -1,4 +1,4 @@
-﻿// Copyright 2017-2019 Dontnod Entertainment
+﻿// Copyright © 2017–2022 Dontnod Entertainment
 
 using Mono.Unix;
 using Mono.Unix.Native;
