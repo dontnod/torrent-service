@@ -77,8 +77,10 @@ namespace Dontnod.TorrentService
             var torrentSettings = new EngineSettings()
             {
                 ListenPort = configuration.Port,
-                ReportedAddress = new IPEndPoint(configuration.ReportedAddress, configuration.Port),
             };
+            if (configuration.ReportedAddress != null)
+                torrentSettings.ReportedAddress = new IPEndPoint(configuration.ReportedAddress, configuration.Port);
+
             torrentEngine = new ClientEngine(torrentSettings);
             torrentWatcher = new TorrentWatcher(torrentEngine);
             torrentWatcher.ApplyConfiguration(configuration);
