@@ -1,7 +1,3 @@
-# Build
-.build/
-.deploy/
-
 # Visual Studio
 .vs/
 *.csproj.user
