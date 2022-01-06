@@ -77,6 +77,9 @@ namespace Dontnod.TorrentService
             var torrentSettings = new EngineSettings()
             {
                 ListenPort = configuration.Port,
+                MaximumConnections = 512,        // default is 150
+                MaximumHalfOpenConnections = 32, // default is 8
+                MaximumOpenFiles = 64,           // default is 20
             };
             if (configuration.ReportedAddress != null)
                 torrentSettings.ReportedAddress = new IPEndPoint(configuration.ReportedAddress, configuration.Port);

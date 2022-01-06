@@ -197,7 +197,12 @@ namespace Dontnod.TorrentService
                         return false;
                 }
 
-                TorrentManager torrentManager = new TorrentManager(torrent, Path.GetDirectoryName(path), new TorrentSettings());
+                var torrentSettings = new TorrentSettings()
+                {
+                    MaximumConnections = 256, // default is 60
+                    UploadSlots = 64,         // default is 8
+                };
+                TorrentManager torrentManager = new TorrentManager(torrent, Path.GetDirectoryName(path), torrentSettings);
                 torrentManager.TorrentStateChanged += OnTorrentStateChanged;
 
                 if (string.IsNullOrEmpty(fastResumePath) || !fastResume.TryLoad(fastResumePath, torrentManager))
