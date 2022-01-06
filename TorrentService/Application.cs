@@ -191,11 +191,11 @@ namespace Dontnod.TorrentService
         {
             foreach (TorrentManager torrentManager in torrents)
             {
+                var getPeerTask = torrentManager.GetPeersAsync();
+                getPeerTask.Wait();
                 logger.Info("Status for torrent {0} (State: {1}, Progress: {2:0.0}%, Peers: [{3}])",
                     torrentManager.Torrent.TorrentPath, torrentManager.State, torrentManager.Progress,
-                    // FIXME: list of peers is no longer directly available
-                    //String.Join(", ", torrentManager.Peers.GetPeers().Select(peer => peer.Uri)));
-                    torrentManager.Peers.Available);
+                    String.Join(", ", getPeerTask.Result.Select(peer => peer.Uri)));
             }
         }
 
@@ -214,9 +214,8 @@ namespace Dontnod.TorrentService
             statusText += "Torrent engine:" + Environment.NewLine;
             statusText += String.Format("  DownloadSpeed: {0} B/s", torrentEngine.TotalDownloadSpeed) + Environment.NewLine;
             statusText += String.Format("  UploadSpeed: {0} B/s", torrentEngine.TotalUploadSpeed) + Environment.NewLine;
-            // FIXME: these functions no longer exist
-            //statusText += String.Format("  Open connections: {0} / {1}", torrentEngine.ConnectionManager.OpenConnections, torrentEngine.ConnectionManager.MaxOpenConnections) + Environment.NewLine;
-            //statusText += String.Format("  Half open connections: {0} / {1}", torrentEngine.ConnectionManager.HalfOpenConnections, torrentEngine.ConnectionManager.MaxHalfOpenConnections) + Environment.NewLine;
+            statusText += String.Format("  Open connections: {0} / {1}", torrentEngine.ConnectionManager.OpenConnections, torrentEngine.Settings.MaximumConnections) + Environment.NewLine;
+            statusText += String.Format("  Half open connections: {0} / {1}", torrentEngine.ConnectionManager.HalfOpenConnections, torrentEngine.Settings.MaximumHalfOpenConnections) + Environment.NewLine;
             statusText += Environment.NewLine;
 
             statusText += "Torrents:" + Environment.NewLine;
@@ -224,10 +223,10 @@ namespace Dontnod.TorrentService
             {
                 statusText += "  " + String.Format("{0} ({1})", torrentManager.Torrent.TorrentPath, torrentManager.State) + Environment.NewLine;
 
-                // FIXME: these functions no longer exist
-                //ICollection<PeerId> peers = torrentManager.GetPeers();
-                //if (peers.Any())
-                //    statusText += "    Peers: " + String.Join(", ", peers) + Environment.NewLine;
+                var getPeersAsync = torrentManager.GetPeersAsync();
+                getPeersAsync.Wait();
+                if (getPeersAsync.Result.Any())
+                    statusText += "    Peers: " + String.Join(", ", getPeersAsync.Result) + Environment.NewLine;
             }
 
             statusText += Environment.NewLine;
