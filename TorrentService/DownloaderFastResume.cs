@@ -26,16 +26,17 @@ namespace Dontnod.TorrentService
                     if (fastResumeCollection.ContainsKey(fastResumePath) == false)
                         fastResumeCollection.Add(fastResumePath, new BEncodedDictionary());
 
+#if false
                     BEncodedDictionary fastResume = fastResumeCollection[fastResumePath];
                     fastResume[ConvertToHash(torrentManager)] = torrentManager.SaveFastResume().Encode();
                     WriteToFile(fastResumePath, fastResume);
+#endif
                     return true;
                 }
             }
             catch (Exception exception)
             {
-                string torrentFile = Path.GetFileName(torrentManager.Torrent.TorrentPath);
-                logger.Warn(exception, "Failed to save fast resume for {0}", torrentFile);
+                logger.Warn(exception, "Failed to save fast resume for {0}", torrentManager.Torrent.Name);
                 return false;
             }
         }
@@ -57,8 +58,10 @@ namespace Dontnod.TorrentService
                     BEncodedString hash = ConvertToHash(torrentManager);
                     if (fastResume.ContainsKey(hash))
                     {
+#if false
                         torrentManager.LoadFastResume(new FastResume((BEncodedDictionary)fastResume[hash]));
                         return true;
+#endif
                     }
 
                     return false;
@@ -66,8 +69,7 @@ namespace Dontnod.TorrentService
             }
             catch (Exception exception)
             {
-                string torrentFile = Path.GetFileName(torrentManager.Torrent.TorrentPath);
-                logger.Warn(exception, "Failed to load fast resume for {0}", torrentFile);
+                logger.Warn(exception, "Failed to load fast resume for {0}", torrentManager.Torrent.Name);
                 return false;
             }
         }
@@ -88,8 +90,7 @@ namespace Dontnod.TorrentService
             }
             catch (Exception exception)
             {
-                string torrentFile = Path.GetFileName(torrentManager.Torrent.TorrentPath);
-                logger.Warn(exception, "Failed to remove fast resume for {0}", torrentFile);
+                logger.Warn(exception, "Failed to remove fast resume for {0}", torrentManager.Torrent.Name);
             }
         }
 

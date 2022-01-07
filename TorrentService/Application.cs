@@ -74,7 +74,7 @@ namespace Dontnod.TorrentService
         {
             this.configuration = configuration;
 
-            var torrentSettings = new EngineSettings()
+            var torrentSettings = new EngineSettingsBuilder()
             {
                 ListenPort = configuration.Port,
                 MaximumConnections = 512,        // default is 150
@@ -84,7 +84,7 @@ namespace Dontnod.TorrentService
             if (configuration.ReportedAddress != null)
                 torrentSettings.ReportedAddress = new IPEndPoint(configuration.ReportedAddress, configuration.Port);
 
-            torrentEngine = new ClientEngine(torrentSettings);
+            torrentEngine = new ClientEngine(torrentSettings.ToSettings());
             torrentWatcher = new TorrentWatcher(torrentEngine);
             torrentWatcher.ApplyConfiguration(configuration);
             statusTimer = new Timer(_ => LogStatus(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
@@ -128,7 +128,7 @@ namespace Dontnod.TorrentService
 
             logger.Info("Stopping torrents");
             statusTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            torrentWatcher.Stop();
+            torrentWatcher.Stop().Wait();
             torrentWatcher.Dispose();
 
             logger.Info("Exiting");
@@ -179,7 +179,7 @@ namespace Dontnod.TorrentService
         {
             if (filter == null)
                 filter = "";
-            ShowStatus(torrentWatcher.ListTorrentManagers().Where(torrentManager => torrentManager.Torrent.TorrentPath.Contains(filter)));
+            ShowStatus(torrentWatcher.ListTorrentManagers().Where(torrentManager => torrentManager.Torrent.Name.Contains(filter)));
         }
 
         public void ShowSeedingStatus()
@@ -194,7 +194,7 @@ namespace Dontnod.TorrentService
                 var getPeerTask = torrentManager.GetPeersAsync();
                 getPeerTask.Wait();
                 logger.Info("Status for torrent {0} (State: {1}, Progress: {2:0.0}%, Peers: [{3}])",
-                    torrentManager.Torrent.TorrentPath, torrentManager.State, torrentManager.Progress,
+                    torrentManager.Torrent.Name, torrentManager.State, torrentManager.Progress,
                     String.Join(", ", getPeerTask.Result.Select(peer => peer.Uri)));
             }
         }
@@ -219,9 +219,9 @@ namespace Dontnod.TorrentService
             statusText += Environment.NewLine;
 
             statusText += "Torrents:" + Environment.NewLine;
-            foreach (TorrentManager torrentManager in allTorrents.OrderBy(t => t.Torrent.TorrentPath))
+            foreach (TorrentManager torrentManager in allTorrents.OrderBy(t => t.Torrent.Name))
             {
-                statusText += "  " + String.Format("{0} ({1})", torrentManager.Torrent.TorrentPath, torrentManager.State) + Environment.NewLine;
+                statusText += "  " + String.Format("{0} ({1})", torrentManager.Torrent.Name, torrentManager.State) + Environment.NewLine;
 
                 var getPeersAsync = torrentManager.GetPeersAsync();
                 getPeersAsync.Wait();

@@ -17,7 +17,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <!-- Do not update this before https://github.com/alanmcgovern/monotorrent/issues/496 is fixed -->
-    <PackageReference Include="MonoTorrent" Version="1.0.27" />
+    <PackageReference Include="MonoTorrent" Version="2.0.3" />
     <PackageReference Include="Mono.Options" Version="6.12.0.148" />
     <PackageReference Include="Mono.Posix.NETStandard" Version="5.20.1-preview" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />

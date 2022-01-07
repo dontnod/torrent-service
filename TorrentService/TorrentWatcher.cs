@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using Logger = NLog.Logger;
 
 namespace Dontnod.TorrentService
@@ -24,16 +25,16 @@ namespace Dontnod.TorrentService
 
         private readonly ClientEngine torrentEngine;
         private readonly DownloaderFastResume fastResume;
-        private readonly object torrentEngineLock = new object();
 
         private readonly object configurationLock = new object();
         private List<string> pathCollectionField;
+        private Dictionary<string, TorrentManager> registeredTorrents = new Dictionary<string, TorrentManager>();
+        private HashSet<string> failedTorrents = new HashSet<string>();
         private string fastResumePath;
         private bool skipHashing;
 
         private readonly Timer updateTimer;
         private readonly object updateEntryLock = new object();
-        private readonly object updateLock = new object();
         private bool isUpdating = false;
 
         public TorrentWatcher(ClientEngine torrentEngine)
@@ -56,36 +57,21 @@ namespace Dontnod.TorrentService
 
         public void Start()
         {
-            lock (updateLock)
-            {
-                logger.Info("Starting (WatchedDirectories: {0})", String.Join(", ", pathCollectionField));
-                updateTimer.Change(TimeSpan.Zero, updateTimerPeriod);
-            }
+            logger.Info("Starting (WatchedDirectories: {0})", String.Join(", ", pathCollectionField));
+            updateTimer.Change(TimeSpan.Zero, updateTimerPeriod);
         }
 
-        public void Stop()
+        public async Task Stop()
         {
-            lock (updateLock)
-            {
-                logger.Info("Stopping");
-                updateTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            logger.Info("Stopping");
+            updateTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-                lock (torrentEngineLock)
-                {
-                    torrentEngine.StopAll();
-                }
-            }
+            await torrentEngine.StopAllAsync();
         }
 
         public void Dispose()
         {
-            lock (updateLock)
-            {
-                lock (torrentEngineLock)
-                {
-                    torrentEngine.Dispose();
-                }
-            }
+            torrentEngine.Dispose();
         }
 
         private void Update()
@@ -98,17 +84,14 @@ namespace Dontnod.TorrentService
                 isUpdating = true;
             }
 
-            lock (updateLock)
+            try
             {
-                try
-                {
-                    UpdateRegisteredTorrents();
-                    UpdateActiveTorrents();
-                }
-                catch (Exception exception)
-                {
-                    logger.Error(exception, "Update failed");
-                }
+                UpdateRegisteredTorrents();
+                UpdateActiveTorrents();
+            }
+            catch (Exception exception)
+            {
+                logger.Error(exception, "Update failed");
             }
 
             lock (updateEntryLock)
@@ -135,10 +118,7 @@ namespace Dontnod.TorrentService
 
         public ICollection<TorrentManager> ListTorrentManagers()
         {
-            lock (torrentEngineLock)
-            {
-                return new List<TorrentManager>(torrentEngine.Torrents);
-            }
+            return new List<TorrentManager>(torrentEngine.Torrents);
         }
 
         private void UpdateRegisteredTorrents()
@@ -148,22 +128,28 @@ namespace Dontnod.TorrentService
 
             int loadCount = 0;
 
+            // Add newly found torrents to the engine
             foreach (string path in allTorrentPaths.OrderByDescending(p => File.GetCreationTime(p)))
             {
-                if (allTorrentManagers.Any(t => t.Torrent.TorrentPath == path) == false)
+                if (!registeredTorrents.ContainsKey(path) && !failedTorrents.Contains(path))
                 {
-                    if (TryAddTorrent(path))
+                    var t = TryAddTorrent(path);
+                    t.Wait();
+                    if (t.Result)
                         loadCount += 1;
+                    else
+                        failedTorrents.Add(path);
                 }
 
                 if (loadCount >= loadingLimit)
                     break;
             }
 
-            foreach (TorrentManager manager in allTorrentManagers)
+            // Remove torrents that are no longer on disk
+            foreach (var path in registeredTorrents.Keys.ToList())
             {
-                if (allTorrentPaths.Contains(manager.Torrent.TorrentPath) == false)
-                    TryRemoveTorrent(manager);
+                if (!allTorrentPaths.Contains(path))
+                    RemoveTorrent(path).Wait();
             }
         }
 
@@ -185,26 +171,23 @@ namespace Dontnod.TorrentService
             }
         }
 
-        private bool TryAddTorrent(string path)
+        private async Task<bool> TryAddTorrent(string path)
         {
             try
             {
                 Torrent torrent = Torrent.Load(path);
 
-                lock (torrentEngineLock)
-                {
-                    if (torrentEngine.Contains(torrent))
-                        return false;
-                }
-
-                var torrentSettings = new TorrentSettings()
+                var torrentSettings = new TorrentSettingsBuilder()
                 {
                     MaximumConnections = 256, // default is 60
                     UploadSlots = 64,         // default is 8
                 };
-                TorrentManager torrentManager = new TorrentManager(torrent, Path.GetDirectoryName(path), torrentSettings);
+                var torrentManager = await torrentEngine.AddAsync(torrent, Path.GetDirectoryName(path), torrentSettings.ToSettings());
                 torrentManager.TorrentStateChanged += OnTorrentStateChanged;
 
+                registeredTorrents[path] = torrentManager;
+
+#if false
                 if (string.IsNullOrEmpty(fastResumePath) || !fastResume.TryLoad(fastResumePath, torrentManager))
                 {
                     // If no fast resume is available, the skipHashing option may create a fake one for us that
@@ -224,14 +207,9 @@ namespace Dontnod.TorrentService
                         torrentManager.LoadFastResume(new FastResume(torrentManager.InfoHash, bitfield, unhashed));
                     }
                 }
-
-                lock (torrentEngineLock)
-                {
-                    torrentEngine.Register(torrentManager);
-                }
+#endif
 
                 logger.Info("Added torrent {0}", path);
-
                 return true;
             }
             catch (Exception exception)
@@ -241,40 +219,29 @@ namespace Dontnod.TorrentService
             }
         }
 
-        private bool TryRemoveTorrent(TorrentManager torrentManager)
+        private async Task RemoveTorrent(string path)
         {
             try
             {
-                if (torrentManager.State == TorrentState.Stopped)
-                {
-                    lock (torrentEngineLock)
-                    {
-                        torrentEngine.Unregister(torrentManager);
-                    }
-
-                    torrentManager.TorrentStateChanged -= OnTorrentStateChanged;
-
-                    logger.Info("Removed torrent {0}", torrentManager.Torrent.TorrentPath);
-
-                    return true;
-                }
-                else
-                {
+                var torrentManager = registeredTorrents[path];
+                if (torrentManager.State != TorrentState.Stopped)
                     torrentManager.StopAsync().Wait();
-                    return false;
-                }
+                torrentManager.TorrentStateChanged -= OnTorrentStateChanged;
+                await torrentEngine.RemoveAsync(torrentManager);
+                registeredTorrents.Remove(path);
+
+                logger.Info("Removed torrent {0}", path);
             }
             catch (Exception exception)
             {
-                logger.Warn(exception, "Failed to remove torrent {0}", torrentManager.Torrent.TorrentPath);
-                return false;
+                logger.Warn(exception, "Failed to remove torrent {0}", path);
             }
         }
 
         private void OnTorrentStateChanged(object sender, TorrentStateChangedEventArgs eventArgs)
         {
             TorrentManager torrentManager = (TorrentManager)sender;
-            string torrentPath = torrentManager.Torrent.TorrentPath;
+            string torrentPath = torrentManager.Torrent.Name;
 
             logger.Trace("{0} changed (State: {1} => {2}, Progress: {3:0.0}%)", torrentPath, eventArgs.OldState, eventArgs.NewState, torrentManager.Progress);
 
@@ -283,7 +250,7 @@ namespace Dontnod.TorrentService
             {
                 case TorrentState.Seeding:
                 case TorrentState.Stopped:
-                    if (string.IsNullOrEmpty(fastResumePath) == false)
+                    if (!string.IsNullOrEmpty(fastResumePath))
                         fastResume.TrySave(fastResumePath, torrentManager);
                     break;
                 default: break;
