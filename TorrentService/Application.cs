@@ -80,6 +80,7 @@ namespace Dontnod.TorrentService
                 MaximumConnections = 512,        // default is 150
                 MaximumHalfOpenConnections = 32, // default is 8
                 MaximumOpenFiles = 64,           // default is 20
+                DhtPort = -1,                    // disable DHT (default is enabled)
             };
             if (configuration.ReportedAddress != null)
                 torrentSettings.ReportedAddress = new IPEndPoint(configuration.ReportedAddress, configuration.Port);
